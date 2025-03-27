@@ -1,9 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+//parallel state machine logic
 public class AIStateMachine : MonoBehaviour
 {
-    public Vector3 destination = new Vector3(-40, 2f, 900f);
+    public Vector3 destination = new Vector3(-30, 70f, 750f);
+    public bool SidewaysProximityStateOn = true;
     private IAIState currentState;
     private List<IAIState> activeStates = new List<IAIState>();
 
@@ -37,41 +39,51 @@ public interface IAIState
     void Execute(AIStateMachine ai);
 }
 
+//state for moving forward and yawing away from obstacles
 public class BestPathForwardState : IAIState
 {
-    public float moveSpeed = 11f;
-    public float raycastDistance = 70f;
-    public float spherecastWidth = 3.5f;
+    public float moveSpeed = 10f;
+    public float spherecastWidth = 3f;
     public float fovAngle = 170f;
     public int rayCount = 300;
     public float rayDistance = 70f;
 
     public void Execute(AIStateMachine ai)
     {
+        //dont want destination to be affected by height
         ai.destination.y = ai.transform.position.y;
 
         Vector3 bestDirection = FindBestPath(ai);
         
         Debug.Log($"Best Direction: {bestDirection}");
 
+        //find a path forward else go up
         if(bestDirection != Vector3.up)
         {
+            ai.SidewaysProximityStateOn = true;
+
             AIHelper.ControlYaw(ai, bestDirection);
             AIHelper.ControlPitch(ai, true);
 
+            //next four lines of code work to calculate speed based on pitch like a real drone
             float xRotation = ai.transform.rotation.eulerAngles.x;
 
-            float speedMultiplier = Mathf.Abs(xRotation) / 6f;
+            float speedMultiplier = Mathf.Abs(xRotation) / 8f;
 
-            float adjustedSpeed = moveSpeed * speedMultiplier;
+            float adjustedSpeed = moveSpeed * speedMultiplier * speedMultiplier;
 
             Vector3 flatForward = new Vector3(ai.transform.forward.x, 0, ai.transform.forward.z).normalized;
+
             ai.transform.position += flatForward * adjustedSpeed * Time.deltaTime;
 
         }
         else
         {
-            AIHelper.ControlPitch(ai, true);
+            //no roll control needed
+            ai.SidewaysProximityStateOn = false;
+
+            AIHelper.ControlYaw(ai, ai.destination);
+            AIHelper.ControlPitch(ai, false);
             
             ai.transform.position += ai.transform.up * moveSpeed * Time.deltaTime; 
         }
@@ -93,17 +105,17 @@ public class BestPathForwardState : IAIState
             Vector3 direction = Quaternion.Euler(0, angle, 0) * directionToTarget;
 
             //slightly move ray cast up might help with bugs
-            Vector3 origin = ai.transform.position + Vector3.down * 0.2f; 
+            Vector3 origin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f; 
 
             if (!Physics.SphereCast(origin, spherecastWidth, direction, out _, rayDistance))
             {
                 bestDirection = direction;
-                Debug.DrawRay(ai.transform.position, direction * rayDistance, Color.green);
+                Debug.DrawRay(origin, direction * rayDistance, Color.green);
                 break;
             }
             else
             {
-                Debug.DrawRay(ai.transform.position, direction * rayDistance, Color.red);
+                Debug.DrawRay(origin, direction * rayDistance, Color.red);
             }
         }
 
@@ -114,15 +126,18 @@ public class BestPathForwardState : IAIState
 
 public class SidewaysProximityState : IAIState
 {
-    public float rayDistance = 45f;
+    public float rayDistance = 60f;
     public float spherecastWidth = .5f;
 
-    public float sidewaysMoveSpeed = 4f;
+    public float sidewaysMoveSpeed = 3.5f;
 
-    public float forwardAngle = 70f;
+    public float forwardAngle = 75f;
 
     public void Execute(AIStateMachine ai)
     {
+        if(!ai.SidewaysProximityStateOn)
+            return;
+
         Vector3 direction = new Vector3(0, 0, 0);
         
         MoveLeftOrRight(ai);
@@ -138,9 +153,9 @@ public class SidewaysProximityState : IAIState
             zRotation -= 360; 
         }
 
-        float speedMultiplier = Mathf.Abs(zRotation) / 10f;
+        float speedMultiplier = Mathf.Abs(zRotation) / 13f;
 
-        float adjustedSpeed = sidewaysMoveSpeed * speedMultiplier;
+        float adjustedSpeed = sidewaysMoveSpeed * speedMultiplier * speedMultiplier;
 
         ai.transform.position += direction * adjustedSpeed * Time.deltaTime;
     }
@@ -148,7 +163,9 @@ public class SidewaysProximityState : IAIState
     void MoveLeftOrRight(AIStateMachine ai)
     {
         RaycastHit leftHit, rightHit;
-        Vector3 origin = ai.transform.position + Vector3.up * 0.1f; 
+        Vector3 rightOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.right * 2f; 
+        Vector3 leftOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.left * 2f; 
+
 
         Vector3 leftDirection = Vector3.Cross(ai.transform.forward, Vector3.up).normalized;
         Vector3 rightDirection = Vector3.Cross(Vector3.up, ai.transform.forward).normalized;
@@ -156,8 +173,8 @@ public class SidewaysProximityState : IAIState
         Vector3 forwardLeftDirection = Quaternion.Euler(0, forwardAngle, 0) * leftDirection;
         Vector3 forwardRightDirection = Quaternion.Euler(0, -1f * forwardAngle, 0) * rightDirection;
 
-        Physics.SphereCast(origin, spherecastWidth, forwardLeftDirection, out leftHit, rayDistance);
-        Physics.SphereCast(origin, spherecastWidth, forwardRightDirection, out rightHit, rayDistance);
+        Physics.SphereCast(leftOrigin, spherecastWidth, forwardLeftDirection, out leftHit, rayDistance);
+        Physics.SphereCast(rightOrigin, spherecastWidth, forwardRightDirection, out rightHit, rayDistance);
 
         float leftDistance = leftHit.distance;
         float rightDistance = rightHit.distance;
@@ -168,20 +185,20 @@ public class SidewaysProximityState : IAIState
         }
         else if(leftDistance == 0)      //right hit
         {
-            Debug.DrawRay(ai.transform.position, forwardRightDirection * rightDistance, Color.cyan, .1f);
+            Debug.DrawRay(rightOrigin, forwardRightDirection * rightDistance, Color.cyan, .05f);
 
             AIHelper.ControlRoll(ai, true, false);
         }
         else if(rightDistance == 0)     //left hit
         {
-            Debug.DrawRay(ai.transform.position, forwardLeftDirection * leftDistance, Color.cyan, .1f);
+            Debug.DrawRay(leftOrigin, forwardLeftDirection * leftDistance, Color.cyan, .05f);
 
             AIHelper.ControlRoll(ai, false, false);
         }
         else        //both hit
         {
-            Debug.DrawRay(ai.transform.position, forwardLeftDirection * leftDistance, Color.cyan, .1f);
-            Debug.DrawRay(ai.transform.position, forwardRightDirection * rightDistance, Color.cyan, .1f);
+            Debug.DrawRay(leftOrigin, forwardLeftDirection * leftDistance, Color.cyan, .05f);
+            Debug.DrawRay(rightOrigin, forwardRightDirection * rightDistance, Color.cyan, .05f);
             
             AIHelper.ControlRoll(ai, leftDistance > rightDistance ? true : false, false);
         }
@@ -198,7 +215,7 @@ public static class AIHelper
 
     public static void ControlYaw(AIStateMachine ai, Vector3 targetDirection)
     {
-        float rotationSpeed = 2f;
+        float rotationSpeed = 1f;
 
         Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
 
@@ -207,14 +224,14 @@ public static class AIHelper
         ai.transform.rotation = Quaternion.Slerp(ai.transform.rotation, newRotation, Time.deltaTime * rotationSpeed);
     }
 
-    public static void ControlRoll(AIStateMachine ai, bool yawRight, bool cancel)
+    public static void ControlRoll(AIStateMachine ai, bool rollRight, bool cancel)
     {
-        float rotationSpeed = 1.5f;
-        float tiltAngle = 10f; 
+        float rotationSpeed = 1f;
+        float tiltAngle = 13f; 
 
         Quaternion baseRotation = Quaternion.LookRotation(ai.transform.forward, Vector3.up);
 
-        float angle = yawRight ? tiltAngle : -tiltAngle;
+        float angle = rollRight ? tiltAngle : -tiltAngle;
 
         if(cancel)
             angle = 0f;
@@ -226,13 +243,12 @@ public static class AIHelper
 
     public static void ControlPitch(AIStateMachine ai, bool pitchForward)
     {
-        float rotationSpeed = 1f;
-        float tiltAngle = 6f; 
-
+        float rotationSpeed = .5f;
+        float tiltAngle = 8f; 
 
         Vector3 currentRotation = ai.transform.rotation.eulerAngles;
 
-        float targetPitch = pitchForward ? tiltAngle : -tiltAngle;
+        float targetPitch = pitchForward ? tiltAngle : 0;
 
         ai.transform.rotation = Quaternion.Slerp(
             Quaternion.Euler(currentRotation.x, currentRotation.y, currentRotation.z),  
@@ -240,6 +256,4 @@ public static class AIHelper
             Time.deltaTime * rotationSpeed
         );
     }
-
-
 }
