@@ -240,6 +240,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: 50, z: 0}
+--- !u!1 &394582992
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 394582993}
+  - component: {fileID: 394582994}
+  m_Layer: 0
+  m_Name: AIApiTest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &394582993
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394582992}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.300857, y: 95.224464, z: 28.480297}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &394582994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394582992}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4929e5be72d024b978b0dbbf84e75476, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  aiObject: {fileID: 0}
+  destination: {x: -30, y: 70, z: 700}
 --- !u!1 &544746681
 GameObject:
   m_ObjectHideFlags: 0
@@ -434,6 +480,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   destination: {x: -40, y: 2, z: 900}
+  height: 20
   SidewaysProximityStateOn: 1
 --- !u!1001 &584085499
 PrefabInstance:
@@ -465,7 +512,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 0c20511817f0a4a97a77a29688a60da9, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 15
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 0c20511817f0a4a97a77a29688a60da9, type: 3}
       propertyPath: m_LocalPosition.z
@@ -505,7 +552,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 7f73fc065052043468ee0442311f15b8, type: 2}
     - target: {fileID: 919132149155446097, guid: 0c20511817f0a4a97a77a29688a60da9, type: 3}
       propertyPath: m_Name
-      value: Player
+      value: Drone
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -761,16 +808,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76477289e0b15422c803dffdf2f1541f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1072292208}
-  offset: {x: 0, y: 10, z: -30}
+  player: {fileID: 0}
+  distance: 25
+  height: 7
+  smoothTime: 0.3
 --- !u!1 &1072292207 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 0c20511817f0a4a97a77a29688a60da9, type: 3}
-  m_PrefabInstance: {fileID: 584085499}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &1072292208 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0c20511817f0a4a97a77a29688a60da9, type: 3}
   m_PrefabInstance: {fileID: 584085499}
   m_PrefabAsset: {fileID: 0}
 --- !u!114 &1072292209
@@ -780,12 +824,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1072292207}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 63e9911f0fc764caf8023f905c627846, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  destination: {x: -30, y: 70, z: 750}
+  destination: {x: -30, y: 70, z: 10}
+  height: 20
   SidewaysProximityStateOn: 1
 --- !u!23 &1072292210
 MeshRenderer:
@@ -935,3 +980,4 @@ SceneRoots:
   - {fileID: 1835612988}
   - {fileID: 628016757}
   - {fileID: 584085499}
+  - {fileID: 394582993}
