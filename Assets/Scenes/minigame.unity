@@ -285,7 +285,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   aiObject: {fileID: 0}
-  destination: {x: -30, y: 70, z: 700}
+  destination: {x: -30, y: 70, z: 900}
 --- !u!1 &544746681
 GameObject:
   m_ObjectHideFlags: 0
@@ -809,7 +809,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  distance: 25
+  distance: 15
   height: 7
   smoothTime: 0.3
 --- !u!1 &1072292207 stripped

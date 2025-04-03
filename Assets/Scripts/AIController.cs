@@ -3,7 +3,7 @@ using UnityEngine;
 public class AIInputController : MonoBehaviour
 {
     public GameObject aiObject; 
-    public Vector3 destination = new Vector3(-30, 70f, 700f);
+    public Vector3 destination = new Vector3(-30, 70f, 900f);
     private AIStateMachine aiStateMachine;
 
     void Start()
@@ -34,4 +34,3 @@ public class AIInputController : MonoBehaviour
         aiStateMachine.SetDestination(destination);
     }
 }
-

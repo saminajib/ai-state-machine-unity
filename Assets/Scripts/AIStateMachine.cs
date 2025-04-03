@@ -10,18 +10,20 @@ public class AIStateMachine : MonoBehaviour
     private IAIState currentState;
     private List<IAIState> activeStates = new List<IAIState>();
 
-    private void Start()
+    private void OnEnable()
     {
         AddState(new TakeoffState());
     }
 
     private void Update()
     {
-        foreach (var state in activeStates)
+        var statesToExecute = new List<IAIState>(activeStates); 
+        foreach (var state in statesToExecute)
         {
             state.Execute(this);
         }
     }
+
 
     public void AddState(IAIState state)
     {
@@ -37,6 +39,11 @@ public class AIStateMachine : MonoBehaviour
     {
         destination = newDestination;
     }
+
+    public void OnDisable()
+    {
+        activeStates = new List<IAIState>();
+    }
 }
 
 public interface IAIState
@@ -51,7 +58,6 @@ public class BestPathForwardState : IAIState
     public float spherecastWidth = 3f;
     public float fovAngle = 170f;
     public int rayCount = 300;
-    public float rayDistance = 70f;
 
     public void Execute(AIStateMachine ai)
     {
@@ -85,12 +91,30 @@ public class BestPathForwardState : IAIState
     }
 
     Vector3 FindBestPath(AIStateMachine ai)
-    {
-        float angleStep = fovAngle / rayCount; 
+    { 
         //default to up if no other options
-        Vector3 bestDirection = Vector3.up;      
+        Vector3 bestDirection = Vector3.up;             
+
+        for(int i = 0; i < 3; i++)
+        {
+            if(bestDirection == Vector3.up)
+            {
+                float rayDistance = 70f - 20f * i;
+                bestDirection = FindBestPathRaycastShooter(ai, rayDistance);
+            }
+        }
+
+        return bestDirection;
+    }
+
+    Vector3 FindBestPathRaycastShooter(AIStateMachine ai, float rayDistance)
+    {
+        Vector3 bestDirection = Vector3.up;
+
         //aim directly towards target      
-        Vector3 directionToTarget = AIHelper.GetDirectionToTarget(ai.transform.position, ai.destination);        
+        Vector3 directionToTarget = AIHelper.GetDirectionToTarget(ai.transform.position, ai.destination);
+        
+        float angleStep = fovAngle / rayCount;
 
         for (int i = 0; i < rayCount; i++)
         {
@@ -100,7 +124,7 @@ public class BestPathForwardState : IAIState
             Vector3 direction = Quaternion.Euler(0, angle, 0) * directionToTarget;
 
             //slightly move ray cast up might help with bugs
-            Vector3 origin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f; 
+            Vector3 origin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 0f; 
 
             if (!Physics.SphereCast(origin, spherecastWidth, direction, out _, rayDistance))
             {
@@ -116,7 +140,6 @@ public class BestPathForwardState : IAIState
 
         return bestDirection;
     }
-
 }
 
 public class SidewaysProximityState : IAIState
@@ -137,9 +160,9 @@ public class SidewaysProximityState : IAIState
 
     void PitchLeftOrRight(AIStateMachine ai)
     {
-        RaycastHit leftHit, rightHit;
-        Vector3 rightOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.right * 2f; 
-        Vector3 leftOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.left * 2f; 
+        RaycastHit leftForwardHit, rightForwardHit, leftHit, rightHit;
+        Vector3 rightOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.right * 1.5f; 
+        Vector3 leftOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.left * 1.5f; 
 
 
         Vector3 leftDirection = Vector3.Cross(ai.transform.forward, Vector3.up).normalized;
@@ -148,11 +171,25 @@ public class SidewaysProximityState : IAIState
         Vector3 forwardLeftDirection = Quaternion.Euler(0, forwardAngle, 0) * leftDirection;
         Vector3 forwardRightDirection = Quaternion.Euler(0, -1f * forwardAngle, 0) * rightDirection;
 
-        Physics.SphereCast(leftOrigin, spherecastWidth, forwardLeftDirection, out leftHit, rayDistance);
-        Physics.SphereCast(rightOrigin, spherecastWidth, forwardRightDirection, out rightHit, rayDistance);
+        float sidewaysRayDistance = 20f;
 
-        float leftDistance = leftHit.distance;
-        float rightDistance = rightHit.distance;
+        Physics.SphereCast(leftOrigin, spherecastWidth, leftDirection, out leftHit, sidewaysRayDistance);
+        Physics.SphereCast(rightOrigin, spherecastWidth, rightDirection, out rightHit, sidewaysRayDistance);
+        
+        if(leftHit.distance != 0 || rightHit.distance != 0)
+        {
+            Debug.DrawRay(leftOrigin, leftDirection * leftHit.distance, Color.cyan, .05f);
+            Debug.DrawRay(rightOrigin, rightDirection * rightHit.distance, Color.cyan, .05f);
+
+            AIHelper.ControlRoll(ai, true, true);
+            return;
+        }
+
+        Physics.SphereCast(leftOrigin, spherecastWidth, forwardLeftDirection, out leftForwardHit, rayDistance);
+        Physics.SphereCast(rightOrigin, spherecastWidth, forwardRightDirection, out rightForwardHit, rayDistance);
+
+        float leftDistance = leftForwardHit.distance;
+        float rightDistance = rightForwardHit.distance;
 
         if(leftDistance == rightDistance)       //no hits
         {
@@ -170,7 +207,7 @@ public class SidewaysProximityState : IAIState
 
             AIHelper.ControlRoll(ai, false, false);
         }
-        else        //both hit
+        else       //both hit
         {
             Debug.DrawRay(leftOrigin, forwardLeftDirection * leftDistance, Color.cyan, .05f);
             Debug.DrawRay(rightOrigin, forwardRightDirection * rightDistance, Color.cyan, .05f);
@@ -206,7 +243,7 @@ public class TakeoffState: IAIState
 public static class AIHelper
 {
     public static float moveForwardSpeed = 10f;
-    public static float moveSidewaysSpeed = 3.5f;
+    public static float moveSidewaysSpeed = 5f;
     public static float moveUpSpeed = 3f;
     public static float pitchAngle = 8f;
     public static float rollAngle = 13f; 

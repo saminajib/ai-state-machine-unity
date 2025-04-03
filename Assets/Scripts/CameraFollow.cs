@@ -3,7 +3,7 @@ using UnityEngine;
 public class CameraFollow : MonoBehaviour
 {
     public Transform player;
-    public float distance = 25f; // Distance behind the player
+    public float distance = 15f; // Distance behind the player
     public float height = 7f;   // Height above the player
     public float smoothTime = 0.3f; // Time for the camera to reach the target position
     private Vector3 velocity = Vector3.zero;
