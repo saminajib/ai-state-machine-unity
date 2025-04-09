@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.Animations;
 
 //parallel state machine logic
 public class AIStateMachine : MonoBehaviour
@@ -59,6 +60,8 @@ public class BestPathForwardState : IAIState
     public float fovAngle = 170f;
     public int rayCount = 300;
 
+    public bool movingUp = false;
+
     public void Execute(AIStateMachine ai)
     {
         //dont want destination to be affected by height
@@ -69,7 +72,8 @@ public class BestPathForwardState : IAIState
         //find a path forward else go up
         if(bestDirection != Vector3.up)
         {
-            fovAngle = 170f;
+            movingUp = false;
+
             ai.SidewaysProximityStateOn = true;
 
             AIHelper.ControlYaw(ai, bestDirection);
@@ -79,14 +83,14 @@ public class BestPathForwardState : IAIState
         }
         else
         {
+            movingUp = true;
             //no roll control needed and decrease angle of view
-            fovAngle = 50f;
             ai.SidewaysProximityStateOn = false;
 
             AIHelper.ControlYaw(ai, ai.destination);
             AIHelper.ControlPitch(ai, false);
             
-            ai.transform.position += ai.transform.up * moveSpeed * Time.deltaTime; 
+            //ai.transform.position += ai.transform.up * moveSpeed * Time.deltaTime; 
         }
     }
 
@@ -95,11 +99,11 @@ public class BestPathForwardState : IAIState
         //default to up if no other options
         Vector3 bestDirection = Vector3.up;             
 
-        for(int i = 0; i < 3; i++)
+        for(int i = 0; i < 10; i++)
         {
-            if(bestDirection == Vector3.up)
+            if(bestDirection == Vector3.up && (!movingUp || i == 1))
             {
-                float rayDistance = 70f - 20f * i;
+                float rayDistance = 70f - 4f * i;
                 bestDirection = FindBestPathRaycastShooter(ai, rayDistance);
             }
         }
@@ -124,17 +128,17 @@ public class BestPathForwardState : IAIState
             Vector3 direction = Quaternion.Euler(0, angle, 0) * directionToTarget;
 
             //slightly move ray cast up might help with bugs
-            Vector3 origin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 0f; 
+            Vector3 origin = ai.transform.position + Vector3.up * 0.5f - Vector3.forward * 1f; 
 
             if (!Physics.SphereCast(origin, spherecastWidth, direction, out _, rayDistance))
             {
                 bestDirection = direction;
-                Debug.DrawRay(origin, direction * rayDistance, Color.green);
+                Debug.DrawRay(origin, direction * rayDistance, Color.green, .01f);
                 break;
             }
             else
             {
-                Debug.DrawRay(origin, direction * rayDistance, Color.red);
+                //Debug.DrawRay(origin, direction * rayDistance, Color.red);
             }
         }
 
@@ -161,8 +165,8 @@ public class SidewaysProximityState : IAIState
     void PitchLeftOrRight(AIStateMachine ai)
     {
         RaycastHit leftForwardHit, rightForwardHit, leftHit, rightHit;
-        Vector3 rightOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.right * 1.5f; 
-        Vector3 leftOrigin = ai.transform.position + Vector3.up * 0.5f + Vector3.forward * 3f + Vector3.left * 1.5f; 
+        Vector3 rightOrigin = ai.transform.position + Vector3.up * 0.5f ; 
+        Vector3 leftOrigin = ai.transform.position + Vector3.up * 0.5f ; 
 
 
         Vector3 leftDirection = Vector3.Cross(ai.transform.forward, Vector3.up).normalized;
@@ -171,7 +175,7 @@ public class SidewaysProximityState : IAIState
         Vector3 forwardLeftDirection = Quaternion.Euler(0, forwardAngle, 0) * leftDirection;
         Vector3 forwardRightDirection = Quaternion.Euler(0, -1f * forwardAngle, 0) * rightDirection;
 
-        float sidewaysRayDistance = 20f;
+        float sidewaysRayDistance = 10f;
 
         Physics.SphereCast(leftOrigin, spherecastWidth, leftDirection, out leftHit, sidewaysRayDistance);
         Physics.SphereCast(rightOrigin, spherecastWidth, rightDirection, out rightHit, sidewaysRayDistance);
@@ -217,6 +221,49 @@ public class SidewaysProximityState : IAIState
     }
 }
 
+public class GroundAvoidanceState: IAIState
+{
+    public float forwardAngle = 60f;
+    private float currentSpeed = 0f;
+    public float acceleration = 2f; 
+    public float maxUpwardSpeed = 4f;
+    public void Execute(AIStateMachine ai)
+    {
+        RaycastHit hit;
+
+        Vector3 origin = ai.transform.position + Vector3.up * 0.5f;
+        
+        Vector3 direction = Quaternion.AngleAxis(-forwardAngle, ai.transform.right) * ai.transform.up;
+
+
+        if (Physics.Raycast(origin, direction, out hit, 40f))
+        {
+            Debug.DrawRay(origin, direction * hit.distance, Color.blue, .05f);
+            MoveUp(ai, true);
+        }
+        else
+        {
+            MoveUp(ai, false);
+            Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
+        }
+    }
+
+    void MoveUp(AIStateMachine ai, bool goUp)
+    {
+        if(goUp)
+        {
+            currentSpeed += acceleration * Time.deltaTime;
+            currentSpeed = Mathf.Min(currentSpeed, maxUpwardSpeed);
+        }
+        else
+        {
+            currentSpeed -= acceleration * Time.deltaTime;
+            currentSpeed = Mathf.Max(currentSpeed, -maxUpwardSpeed); 
+        }
+        ai.transform.position += Vector3.up * currentSpeed * Time.deltaTime;
+    }
+}
+
 public class TakeoffState: IAIState
 {
     public void Execute(AIStateMachine ai)
@@ -234,6 +281,7 @@ public class TakeoffState: IAIState
         {
             ai.AddState(new BestPathForwardState());
             ai.AddState(new SidewaysProximityState());
+            ai.AddState(new GroundAvoidanceState());
             ai.RemoveState(this);
         }
     }
@@ -260,7 +308,7 @@ public static class AIHelper
         if(goUp)
             ai.transform.position += ai.transform.up * adjustedSpeed * Time.deltaTime; 
         else
-            ai.transform.position -= ai.transform.up * adjustedSpeed * Time.deltaTime; 
+            ai.transform.position -= ai.transform.up * moveUpSpeed * Time.deltaTime; 
     }
 
     public static void MoveForwardBasedOnPitch(AIStateMachine ai)
