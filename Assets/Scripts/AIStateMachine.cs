@@ -8,7 +8,6 @@ public class AIStateMachine : MonoBehaviour
     public Vector3 destination = new Vector3(-30, 70f, 10f);
     public float height = 20f;
     public bool SidewaysProximityStateOn = true;
-    private IAIState currentState;
     private List<IAIState> activeStates = new List<IAIState>();
 
     private void OnEnable()
