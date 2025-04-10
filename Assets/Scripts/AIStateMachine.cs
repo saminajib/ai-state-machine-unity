@@ -221,48 +221,89 @@ public class SidewaysProximityState : IAIState
     }
 }
 
-public class GroundAvoidanceState: IAIState
+public class GroundAvoidanceState : IAIState
 {
     public float forwardAngle = 60f;
     private float currentSpeed = 0f;
-    public float acceleration = 2f; 
-    public float maxUpwardSpeed = 4f;
+    public float acceleration = 10f;
+    public float maxUpwardSpeed = 8f;
+    private PIDController pidController;
+    public float desiredHeight = 40f;  // Set the desired height here
+
+    public GroundAvoidanceState()
+    {
+        pidController = new PIDController(.2f, 0.1f, 0.05f); 
+    }
+
     public void Execute(AIStateMachine ai)
     {
         RaycastHit hit;
-
         Vector3 origin = ai.transform.position + Vector3.up * 0.5f;
-        
-        Vector3 direction = Quaternion.AngleAxis(-forwardAngle, ai.transform.right) * ai.transform.up;
+        Vector3 yawRight = Quaternion.Euler(0, ai.transform.eulerAngles.y, 0) * Vector3.right;
 
+        Vector3 direction = Quaternion.AngleAxis(-forwardAngle, yawRight) * Vector3.down;
 
-        if (Physics.Raycast(origin, direction, out hit, 40f))
+        if (Physics.Raycast(origin, direction, out hit, 80f))
         {
             Debug.DrawRay(origin, direction * hit.distance, Color.blue, .05f);
-            MoveUp(ai, true);
-        }
-        else
-        {
-            MoveUp(ai, false);
-            Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
-        }
-    }
 
-    void MoveUp(AIStateMachine ai, bool goUp)
-    {
-        if(goUp)
-        {
-            currentSpeed += acceleration * Time.deltaTime;
-            currentSpeed = Mathf.Min(currentSpeed, maxUpwardSpeed);
+            // Calculate the error in height (distance between current height and desired height)
+            float error = desiredHeight - hit.distance;
+            // Use PID controller to calculate the required speed
+            float speedAdjustment = pidController.Calculate(error);
+            
+            // Clamp the speed to prevent too fast adjustments
+            currentSpeed = Mathf.Clamp(speedAdjustment, -maxUpwardSpeed, maxUpwardSpeed);
         }
         else
         {
-            currentSpeed -= acceleration * Time.deltaTime;
-            currentSpeed = Mathf.Max(currentSpeed, -maxUpwardSpeed); 
+            Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
+
+            // If no ground is detected, slowly decrease speed
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * Time.deltaTime);
         }
+
+        // Apply the final speed adjustment
         ai.transform.position += Vector3.up * currentSpeed * Time.deltaTime;
     }
 }
+
+public class PIDController
+{
+    private float kp, ki, kd;
+    private float previousError;
+    private float integral;
+    private float maxSpeed = 8f; 
+
+    // Constructor with maxSpeed
+    public PIDController(float kp, float ki, float kd)
+    {
+        this.kp = kp;
+        this.ki = ki;
+        this.kd = kd;
+    }
+
+    // Calculate the PID output
+    public float Calculate(float error)
+    {
+        // Calculate integral and derivative
+        integral += error * Time.deltaTime;
+        float derivative = (error - previousError) / Time.deltaTime;
+
+        // Calculate PID output
+        float output = kp * error + ki * integral + kd * derivative;
+
+        // Clamp the output to the maxSpeed
+        output = Mathf.Clamp(output, -maxSpeed, maxSpeed);
+
+        // Save the current error for the next derivative calculation
+        previousError = error;
+
+        return output;
+    }
+}
+
+
 
 public class TakeoffState: IAIState
 {
