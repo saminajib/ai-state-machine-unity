@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine.Animations;
 
 //parallel state machine logic
 public class AIStateMachine : MonoBehaviour
@@ -55,9 +54,9 @@ public interface IAIState
 public class BestPathForwardState : IAIState
 {
     public float moveSpeed = 10f;
-    public float spherecastWidth = 3f;
+    public float spherecastWidth = 5f;
     public float fovAngle = 170f;
-    public int rayCount = 300;
+    public int rayCount = 100;
 
     public bool movingUp = false;
 
@@ -132,7 +131,7 @@ public class BestPathForwardState : IAIState
             if (!Physics.SphereCast(origin, spherecastWidth, direction, out _, rayDistance))
             {
                 bestDirection = direction;
-                Debug.DrawRay(origin, direction * rayDistance, Color.green, .01f);
+                Debug.DrawRay(origin, direction * rayDistance, Color.green);
                 break;
             }
             else
@@ -222,16 +221,19 @@ public class SidewaysProximityState : IAIState
 
 public class GroundAvoidanceState : IAIState
 {
-    public float forwardAngle = 60f;
+    public float forwardAngle = 20f;
     private float currentSpeed = 0f;
     public float acceleration = 10f;
     public float maxUpwardSpeed = 8f;
+    public float sphereCastWidth = 5f;
     private PIDController pidController;
-    public float desiredHeight = 40f;  // Set the desired height here
+    //40f was chosen based on the shortest ray used by forward path state
+    //in a dead end this number is crucial for the drone to move up and not be stuck
+    public float distance = 30f;  
 
     public GroundAvoidanceState()
     {
-        pidController = new PIDController(.2f, 0.1f, 0.05f); 
+        pidController = new PIDController(.2f, .1f, 0.01f); 
     }
 
     public void Execute(AIStateMachine ai)
@@ -241,28 +243,25 @@ public class GroundAvoidanceState : IAIState
         Vector3 yawRight = Quaternion.Euler(0, ai.transform.eulerAngles.y, 0) * Vector3.right;
 
         Vector3 direction = Quaternion.AngleAxis(-forwardAngle, yawRight) * Vector3.down;
+        //Vector3 direction = Vector3.down;
 
-        if (Physics.Raycast(origin, direction, out hit, 80f))
+        if (Physics.SphereCast(origin, sphereCastWidth, direction, out hit, 200f))
         {
             Debug.DrawRay(origin, direction * hit.distance, Color.blue, .05f);
 
-            // Calculate the error in height (distance between current height and desired height)
-            float error = desiredHeight - hit.distance;
-            // Use PID controller to calculate the required speed
+            float error = distance - hit.distance;
+
             float speedAdjustment = pidController.Calculate(error);
             
-            // Clamp the speed to prevent too fast adjustments
             currentSpeed = Mathf.Clamp(speedAdjustment, -maxUpwardSpeed, maxUpwardSpeed);
         }
         else
         {
             Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
 
-            // If no ground is detected, slowly decrease speed
             currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * Time.deltaTime);
         }
 
-        // Apply the final speed adjustment
         ai.transform.position += Vector3.up * currentSpeed * Time.deltaTime;
     }
 }
@@ -316,6 +315,7 @@ public class TakeoffState: IAIState
         {
             Debug.DrawRay(origin, direction * hit.distance, Color.red, .05f);
             AIHelper.MoveUpward(ai, true, hit.distance);
+            AIHelper.ControlRoll(ai, true, true);
         }
         else
         {
@@ -379,7 +379,7 @@ public static class AIHelper
             zRotation -= 360; 
         }
 
-        float speedMultiplier = Mathf.Abs(zRotation) / 13f;
+        float speedMultiplier = Mathf.Abs(zRotation) / rollAngle;
 
         float adjustedSpeed = moveSidewaysSpeed * speedMultiplier * speedMultiplier;
 
