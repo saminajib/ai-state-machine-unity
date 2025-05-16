@@ -59,17 +59,52 @@
     <UnityVersion>6000.0.36f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Analyzer Include="/Users/saminajib/.vscode/extensions/visualstudiotoolsforunity.vstuc-1.1.1/Analyzers/Microsoft.Unity.Analyzers.dll" />
+    <Analyzer Include="/Users/saminajib/.vscode/extensions/visualstudiotoolsforunity.vstuc-1.1.2/Analyzers/Microsoft.Unity.Analyzers.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.0.36f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.SourceGenerators.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.0.36f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.0.36f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/OptimizationManager.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/GPS.cs" />
     <Compile Include="Assets/Scripts/AIController.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/droneSettings.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/Accelerometer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Tools/dataSaver.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/geneticOptimization/geneticBehaviour.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/droneMovementController.cs" />
     <Compile Include="Assets/Scripts/PlayerController.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level1_Trajectories/WaypointProgressTracker.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/OptimizationBehaviour.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level1_Trajectories/WaypointCircuit.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level2_IA/maze/dataCollector.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/Barometer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Tools/lineDrawer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/noiseAdder.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level2_IA/IA.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level2_IA/maze/drawing/dataDrawer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Tools/configReader.cs" />
     <Compile Include="Assets/Scripts/AIStateMachine.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/rotor.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/noiseAddVector3.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level2_IA/maze/mazeExplorer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/geneticOptimization/GAmanager.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/twidOptimization/twiddleManager.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/twidOptimization/twiddleSettings.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/PID.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level1_Trajectories/singlePoint.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/twidOptimization/twiddleBehaviour.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/Gyro.cs" />
     <Compile Include="Assets/Scripts/CameraFollow.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Tools/dataReader.cs" />
+    <Compile Include="Assets/Realistic Drone/lookAt.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level1_Trajectories/Waypoint.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/sensors/Magnetometer.cs" />
+    <Compile Include="Assets/Realistic Drone/drone/Level0_Stabilizing/optimizations/geneticOptimization/GeneticSettings.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets/Realistic Drone/README.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

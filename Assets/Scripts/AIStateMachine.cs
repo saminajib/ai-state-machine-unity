@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 //parallel state machine logic
 public class AIStateMachine : MonoBehaviour
@@ -54,7 +55,7 @@ public interface IAIState
 public class BestPathForwardState : IAIState
 {
     public float moveSpeed = 10f;
-    public float spherecastWidth = 5f;
+    public float spherecastWidth = 3f;
     public float fovAngle = 170f;
     public int rayCount = 100;
 
@@ -66,6 +67,7 @@ public class BestPathForwardState : IAIState
         ai.destination.y = ai.transform.position.y;
 
         Vector3 bestDirection = FindBestPath(ai);
+
 
         //find a path forward else go up
         if(bestDirection != Vector3.up)
@@ -219,87 +221,138 @@ public class SidewaysProximityState : IAIState
     }
 }
 
-public class GroundAvoidanceState : IAIState
-{
-    public float forwardAngle = 20f;
-    private float currentSpeed = 0f;
-    public float acceleration = 10f;
-    public float maxUpwardSpeed = 8f;
-    public float sphereCastWidth = 5f;
-    private PIDController pidController;
-    //40f was chosen based on the shortest ray used by forward path state
-    //in a dead end this number is crucial for the drone to move up and not be stuck
-    public float distance = 30f;  
 
-    public GroundAvoidanceState()
-    {
-        pidController = new PIDController(.2f, .1f, 0.01f); 
-    }
+public class GroundAvoidanceStateAlt : IAIState
+{
+    public float rayCount = 51;
+    public float fovAngle = 100f;
+    public float rayDistance = 80f;
 
     public void Execute(AIStateMachine ai)
     {
-        RaycastHit hit;
-        Vector3 origin = ai.transform.position + Vector3.up * 0.5f;
-        Vector3 yawRight = Quaternion.Euler(0, ai.transform.eulerAngles.y, 0) * Vector3.right;
+        float angle = FindBestHeightRaycastShooter(ai, rayDistance) - 15f;
 
-        Vector3 direction = Quaternion.AngleAxis(-forwardAngle, yawRight) * Vector3.down;
-        //Vector3 direction = Vector3.down;
-
-        if (Physics.SphereCast(origin, sphereCastWidth, direction, out hit, 200f))
+        if(float.IsNaN(angle))
         {
-            Debug.DrawRay(origin, direction * hit.distance, Color.blue, .05f);
-
-            float error = distance - hit.distance;
-
-            float speedAdjustment = pidController.Calculate(error);
-            
-            currentSpeed = Mathf.Clamp(speedAdjustment, -maxUpwardSpeed, maxUpwardSpeed);
+            Debug.Log("Error - No free height forward, do nothing for now");
         }
         else
         {
-            Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
+            float throttleStrength = Mathf.InverseLerp(0f, fovAngle * 0.5f, Mathf.Abs(angle));
+            float smoothedThrottle = Mathf.SmoothStep(0f, 1f, throttleStrength);
 
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * Time.deltaTime);
+            bool goUp = angle < 0f;
+            Debug.Log("throttle is " + smoothedThrottle + " angle is " + angle);
+            AIHelper.Throttle(ai, goUp, smoothedThrottle);
+        }
+    }
+
+    float FindBestHeightRaycastShooter(AIStateMachine ai, float rayDistance)
+    {
+        float halfFOV = fovAngle * 0.5f;
+        float angleStep = fovAngle / (rayCount - 1);
+        Vector3 origin = ai.transform.position + Vector3.up * 0.5f - Vector3.forward * 1f;
+
+        for (int i = 0; i < rayCount; i++)
+        {
+            //scan from lowest pitch (downward) to highest pitch (upward)
+            float angle = halfFOV - i * angleStep;
+            Vector3 direction = ai.transform.rotation * Quaternion.Euler(angle, 0f, 0f) * Vector3.forward;
+
+
+            if (!Physics.Raycast(origin, direction, out _, rayDistance))
+            {
+                Debug.DrawRay(origin, direction * rayDistance, Color.gray);
+                return angle;
+            }
+            Debug.DrawRay(origin, direction * rayDistance, Color.red);
         }
 
-        ai.transform.position += Vector3.up * currentSpeed * Time.deltaTime;
+        return float.NaN;
     }
+
 }
+// public class GroundAvoidanceState : IAIState
+// {
+//     public float forwardAngle = 20f;
+//     private float currentSpeed = 0f;
+//     public float acceleration = 10f;
+//     public float maxUpwardSpeed = 8f;
+//     public float sphereCastWidth = 5f;
+//     private PIDController pidController;
+//     //40f was chosen based on the shortest ray used by forward path state
+//     //in a dead end this number is crucial for the drone to move up and not be stuck
+//     public float distance = 30f;  
 
-public class PIDController
-{
-    private float kp, ki, kd;
-    private float previousError;
-    private float integral;
-    private float maxSpeed = 8f; 
+//     public GroundAvoidanceState()
+//     {
+//         pidController = new PIDController(.2f, .1f, 0.01f); 
+//     }
 
-    // Constructor with maxSpeed
-    public PIDController(float kp, float ki, float kd)
-    {
-        this.kp = kp;
-        this.ki = ki;
-        this.kd = kd;
-    }
+//     public void Execute(AIStateMachine ai)
+//     {
+//         RaycastHit hit;
+//         Vector3 origin = ai.transform.position + Vector3.up * 0.5f;
+//         Vector3 yawRight = Quaternion.Euler(0, ai.transform.eulerAngles.y, 0) * Vector3.right;
 
-    // Calculate the PID output
-    public float Calculate(float error)
-    {
-        // Calculate integral and derivative
-        integral += error * Time.deltaTime;
-        float derivative = (error - previousError) / Time.deltaTime;
+//         Vector3 direction = Quaternion.AngleAxis(-forwardAngle, yawRight) * Vector3.down;
+//         //Vector3 direction = Vector3.down;
 
-        // Calculate PID output
-        float output = kp * error + ki * integral + kd * derivative;
+//         if (Physics.SphereCast(origin, sphereCastWidth, direction, out hit, 200f))
+//         {
+//             Debug.DrawRay(origin, direction * hit.distance, Color.blue, .05f);
 
-        // Clamp the output to the maxSpeed
-        output = Mathf.Clamp(output, -maxSpeed, maxSpeed);
+//             float error = distance - hit.distance;
 
-        // Save the current error for the next derivative calculation
-        previousError = error;
+//             float speedAdjustment = pidController.Calculate(error);
+            
+//             currentSpeed = Mathf.Clamp(speedAdjustment, -maxUpwardSpeed, maxUpwardSpeed);
+//         }
+//         else
+//         {
+//             Debug.DrawRay(origin, direction * ai.height, Color.red, .05f);
 
-        return output;
-    }
-}
+//             currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * Time.deltaTime);
+//         }
+
+//         ai.transform.position += Vector3.up * currentSpeed * Time.deltaTime;
+//     }
+// }
+
+// public class PIDController
+// {
+//     private float kp, ki, kd;
+//     private float previousError;
+//     private float integral;
+//     private float maxSpeed = 8f; 
+
+//     // Constructor with maxSpeed
+//     public PIDController(float kp, float ki, float kd)
+//     {
+//         this.kp = kp;
+//         this.ki = ki;
+//         this.kd = kd;
+//     }
+
+//     // Calculate the PID output
+//     public float Calculate(float error)
+//     {
+//         // Calculate integral and derivative
+//         integral += error * Time.deltaTime;
+//         float derivative = (error - previousError) / Time.deltaTime;
+
+//         // Calculate PID output
+//         float output = kp * error + ki * integral + kd * derivative;
+
+//         // Clamp the output to the maxSpeed
+//         output = Mathf.Clamp(output, -maxSpeed, maxSpeed);
+
+//         // Save the current error for the next derivative calculation
+//         previousError = error;
+
+//         return output;
+//     }
+// }
 
 
 
@@ -321,7 +374,7 @@ public class TakeoffState: IAIState
         {
             ai.AddState(new BestPathForwardState());
             ai.AddState(new SidewaysProximityState());
-            ai.AddState(new GroundAvoidanceState());
+            ai.AddState(new GroundAvoidanceStateAlt());
             ai.RemoveState(this);
         }
     }
@@ -335,12 +388,20 @@ public static class AIHelper
     public static float moveUpSpeed = 3f;
     public static float pitchAngle = 8f;
     public static float rollAngle = 13f; 
-
+    public static float throttleSpeed = 5f;
     public static Vector3 GetDirectionToTarget(Vector3 position, Vector3 destination)
     {
         return (destination - position).normalized;
     }
 
+    public static void Throttle(AIStateMachine ai, bool goUp, float throttleAmount)
+    {
+        float adjustedSpeed = throttleAmount * throttleSpeed;
+        if(goUp)
+            ai.transform.position += ai.transform.up * adjustedSpeed * Time.deltaTime; 
+        else
+            ai.transform.position -= ai.transform.up * adjustedSpeed * Time.deltaTime; 
+    }
     public static void MoveUpward(AIStateMachine ai, bool goUp, float distance)
     {
         float adjustedSpeed = Mathf.Sin(Mathf.PI * distance / ai.height) * moveUpSpeed * 1.5f + moveUpSpeed / 2;
