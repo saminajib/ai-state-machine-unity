@@ -285,7 +285,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   aiObject: {fileID: 0}
-  destination: {x: -500, y: 70, z: 900}
+  destination: {x: 200, y: 70, z: -200}
 --- !u!1 &544746681
 GameObject:
   m_ObjectHideFlags: 0

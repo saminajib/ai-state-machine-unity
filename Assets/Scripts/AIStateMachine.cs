@@ -57,7 +57,7 @@ public class BestPathForwardState : IAIState
     public float moveSpeed = 10f;
     public float spherecastWidth = 3f;
     public float fovAngle = 170f;
-    public int rayCount = 100;
+    public int rayCount = 50;
 
     public bool movingUp = false;
 
@@ -353,8 +353,6 @@ public class GroundAvoidanceStateAlt : IAIState
 //         return output;
 //     }
 // }
-
-
 
 public class TakeoffState: IAIState
 {
